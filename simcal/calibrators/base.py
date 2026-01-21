@@ -1,4 +1,5 @@
 import time
+import warnings
 from typing import Self
 
 import simcal.coordinators.base as Coordinator
@@ -16,6 +17,7 @@ class Base(object):
         self.timeline = []  # all best calibrations in order (up to _max_timeline to prevent memory issues)
         self._max_timeline = 100000
         self.current_best = None
+        self.start_time=time.monotonic() # the approximate time of start, used for error messages.
 
     def mark_calibration(self, calibration):
         timestamp = int(time.time())
@@ -60,6 +62,11 @@ class Base(object):
         def wrapper(self,*args, **kwargs):
             try:
                 return func(self,*args, **kwargs)
+            except EOFError:
+                warnings.warn(str(time.monotonic()-self.start_time)+": EOFError, this is likely caused by a worker "
+                                                                    "getting killed before it has finished making its"
+                                                                    " output: returning previous best")
+                return self.current_best
             except exception.Timeout:
                 return self.current_best
             except exception.EarlyTermination as e:
